@@ -47,7 +47,7 @@ int open_db(const char *db_path, sqlite3 **db, char **error)
         Id INTEGER PRIMARY KEY AUTOINCREMENT\
         ,Content TEXT\
         ,CreatedOn TIMESTAMP DEFAULT CURRENT_TIMESTAMP\
-    )";
+    );";
     char *sql_error = NULL;
     rc = sqlite3_exec(*db, sql, NULL, NULL, &sql_error);
     if (rc != SQLITE_OK)
@@ -62,9 +62,13 @@ int open_db(const char *db_path, sqlite3 **db, char **error)
 int add_item(sqlite3 *db, const char *content, char **error)
 {
     char *sql = NULL;
-    asprintf(&sql, "INSERT INTO Items (Content) VALUES ('%s')", content);
+    // TODO escape single quotes in item content
+    asprintf(&sql, "INSERT INTO Items (Content) VALUES ('%s');", content);
     char *sql_error = NULL;
     int rc = sqlite3_exec(db, sql, NULL, NULL, &sql_error);
+    free(sql);
+    sql = NULL;
+
     if (rc != SQLITE_OK)
     {
         error_from_sqlite_error(error, "Cannot insert item", sql_error);
@@ -74,7 +78,8 @@ int add_item(sqlite3 *db, const char *content, char **error)
     return 0;
 }
 
-void join(char **dest, const int count, const int start, const char **strings, const char *separator)
+void join(char **dest, const int count, const int start, const char **strings,
+          const char *separator)
 {
     int sep_len = strlen(separator);
     int length = 0;
@@ -99,6 +104,33 @@ void join(char **dest, const int count, const int start, const char **strings, c
     }
 }
 
+int print_items_callback(__attribute__((unused)) void *_, int argc, char **argv,
+                         __attribute__((unused)) char **col_names)
+{
+    if (argc > 0)
+    {
+        printf("%s\n", argv[0]);
+    }
+    return 0;
+}
+
+int print_items(sqlite3 *db, char **error)
+{
+    char *sql = NULL;
+    asprintf(&sql, "SELECT Content, CreatedOn FROM Items ORDER BY CreatedOn;");
+    char *sql_error = NULL;
+    int rc = sqlite3_exec(db, sql, print_items_callback, NULL, &sql_error);
+    free(sql);
+    sql = NULL;
+
+    if (rc != SQLITE_OK)
+    {
+        error_from_sqlite_error(error, "Cannot get items", sql_error);
+    }
+
+    return rc;
+}
+
 void on_error(const char *error, sqlite3 *db)
 {
     fprintf(stderr, "%s", error);
@@ -119,15 +151,26 @@ int main(const int argc, const char *argv[])
     // TODO only show with verbose flag
     printf("Using database %s\n", db_path);
 
-    char *item = NULL;
-    join(&item, argc, 1, argv, " ");
-    rc = add_item(db, item, &error);
-    if (rc != 0)
+    if (argc > 1)
     {
-        on_error(error, db);
+        char *item = NULL;
+        join(&item, argc, 1, argv, " ");
+        rc = add_item(db, item, &error);
+        if (rc != 0)
+        {
+            on_error(error, db);
+        }
+        free(item);
+        item = NULL;
     }
-    free(item);
-    item = NULL;
+    else
+    {
+        rc = print_items(db, &error);
+        if (rc != 0)
+        {
+            on_error(error, db);
+        }
+    }
 
     sqlite3_close(db);
     free(db_path);
