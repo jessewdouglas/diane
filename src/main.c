@@ -63,17 +63,29 @@ int open_db(const char *db_path, sqlite3 **db, char **error)
 
 int add_item(sqlite3 *db, const char *content, char **error)
 {
-    char *sql = NULL;
-    // TODO escape single quotes in item content
-    asprintf(&sql, "INSERT INTO Items (Content) VALUES ('%s');", content);
-    char *sql_error = NULL;
-    int rc = sqlite3_exec(db, sql, NULL, NULL, &sql_error);
-    free(sql);
-    sql = NULL;
+    const char *err_fmt = "Cannot insert item: %s";
 
+    char *sql = "INSERT INTO Items (Content) VALUES (?);";
+    sqlite3_stmt *stmt;
+    int rc = sqlite3_prepare_v2(db, sql, -1, &stmt, NULL);
     if (rc != SQLITE_OK)
     {
-        error_from_sqlite_error(error, "Cannot insert item", sql_error);
+        asprintf(error, err_fmt, sqlite3_errmsg(db));
+        return rc;
+    }
+
+    sqlite3_bind_text(stmt, 1, content, -1, NULL);
+    int step = sqlite3_step(stmt);
+    if (step != SQLITE_ROW)
+    {
+        asprintf(error, err_fmt, sqlite3_errmsg(db));
+        return rc;
+    }
+
+    rc = sqlite3_finalize(stmt);
+    if (rc != SQLITE_OK)
+    {
+        asprintf(error, err_fmt, sqlite3_errmsg(db));
         return rc;
     }
 
@@ -118,12 +130,9 @@ int print_items_callback(__attribute__((unused)) void *_, int argc, char **argv,
 
 int print_items(sqlite3 *db, char **error)
 {
-    char *sql = NULL;
-    asprintf(&sql, "SELECT Content, CreatedOn FROM Items ORDER BY CreatedOn;");
+    char *sql = "SELECT Content, CreatedOn FROM Items ORDER BY CreatedOn;";
     char *sql_error = NULL;
     int rc = sqlite3_exec(db, sql, print_items_callback, NULL, &sql_error);
-    free(sql);
-    sql = NULL;
 
     if (rc != SQLITE_OK)
     {
