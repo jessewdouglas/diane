@@ -144,7 +144,7 @@ int print_items(sqlite3 *db, char **error)
 
 void on_error(char *error, sqlite3 *db)
 {
-    fprintf(stderr, "%s", error);
+    fprintf(stderr, "%s\n", error);
     sqlite3_close(db);
     free(error);
     exit(EXIT_FAILURE);
