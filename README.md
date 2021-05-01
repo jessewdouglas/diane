@@ -24,11 +24,20 @@ diane
 
 ## Building
 
-`diane` uses `gcc` and `make` to build. Navigate to the `src` folder and invoke `make`:
+`diane` uses `gcc` and `make` to build. To build and install, invoke:
 
 ```
 cd src
 make
+[sudo] make install
+```
+
+`make install` installs `diane` in `/usr/local/bin`.
+
+To uninstall, invoke:
+
+```
+[sudo] make uninstall
 ```
 
 At present, building and running `diane` requires a POSIX-compatible environment with the GNU extension functions (e.g., Linux, macOS, Windows Subsystem for Linux).
