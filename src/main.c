@@ -75,8 +75,8 @@ int add_item(sqlite3 *db, const char *content, char **error)
     }
 
     sqlite3_bind_text(stmt, 1, content, -1, NULL);
-    int step = sqlite3_step(stmt);
-    if (step != SQLITE_ROW)
+    rc = sqlite3_step(stmt);
+    if (rc != SQLITE_DONE)
     {
         asprintf(error, err_fmt, sqlite3_errmsg(db));
         return rc;
@@ -142,10 +142,11 @@ int print_items(sqlite3 *db, char **error)
     return rc;
 }
 
-void on_error(const char *error, sqlite3 *db)
+void on_error(char *error, sqlite3 *db)
 {
     fprintf(stderr, "%s", error);
     sqlite3_close(db);
+    free(error);
     exit(EXIT_FAILURE);
 }
 
